@@ -244,7 +244,7 @@ class LifeTimeFrame(wx.Frame):
             if re.match('^(\w+)\(([\w\,\.\-_]+)\)$',text):
                 [command,parameters]=text.rstrip(')').split('(')
                 parameters=parameters.split(',')
-
+				# TODO: I THINK THIS IS WHERE I SHOULD ADD THE COMS COMMUNICATION
                 res = 0
                 if command == 'subdir':
                     res=self.commandSubdir(parameters)
@@ -327,7 +327,7 @@ class LifeTimeFrame(wx.Frame):
 
         self.__info('  imagegrab -n %i ' % self.frames + \
               '-t %i ' % self.threshold + '-o %s\n' % filename)
-        ret = LifetimeImager(frame=self.frames, preview=False, filename=filename).capture()
+        ret = LifetimeImager().setFrames(self.frames).setFilename(filename).capture()
 
         '''ret=subprocess.call([self.parent.exedir + '/imagegrab.exe',\
                          '-n',\
@@ -567,7 +567,7 @@ class MainFrame(wx.Frame):
         elif val == 2:
             e=1e9
         elif val == 3:
-            e=12
+            e=1e12 #Put this because it seems wrong, but check with Taras
         else:
             raise ValueError,'unknown time suffix!'
 
@@ -629,7 +629,7 @@ class MainFrame(wx.Frame):
 
     def onLivePreview(self, event): # wxGlade: MainFrame.<event_handler>
         numframes=int(self.textCtrlPreviewFrames.GetValue())
-        LifetimeImager(frame=numframes, preview=True).capture()
+        LifetimeImager().setFrames(numframes).preview()
 
     def onClose(self,event):
         self.Destroy()
