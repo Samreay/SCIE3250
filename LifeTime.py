@@ -327,15 +327,16 @@ class LifeTimeFrame(wx.Frame):
 
         self.__info('  imagegrab -n %i ' % self.frames + \
               '-t %i ' % self.threshold + '-o %s\n' % filename)
+        ret = LifetimeImager(frame=self.frames, preview=False, filename=filename).capture()
 
-        ret=subprocess.call([self.parent.exedir + '/imagegrab.exe',\
+        '''ret=subprocess.call([self.parent.exedir + '/imagegrab.exe',\
                          '-n',\
                          '%i' % self.frames, \
                          '-t',\
                          '%i' % self.threshold, \
                          '-o',\
-                         '%s' % filename])
-        if ret != 0:
+                         '%s' % filename])'''
+        if ret != True:
             self.__error('imagegrab.exe returned an error!')
             return -1
         else:
@@ -628,7 +629,7 @@ class MainFrame(wx.Frame):
 
     def onLivePreview(self, event): # wxGlade: MainFrame.<event_handler>
         numframes=int(self.textCtrlPreviewFrames.GetValue())
-        LifetimeImager(numframes).capture()
+        LifetimeImager(frame=numframes, preview=True).capture()
 
     def onClose(self,event):
         self.Destroy()
