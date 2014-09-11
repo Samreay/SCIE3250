@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.io
 import cv2
 import time
 from ctypes import *
@@ -81,7 +82,8 @@ class LifetimeImager:
             
             cv2.destroyAllWindows()
             if (total != None and self.preview == False):
-                np.savetxt(self.fileOutput + ".dat", np.mean(total, axis=2), "%d", ",")
+				image = np.mean(total, axis=2)
+				scipy.io.savemat(self.fileOutput + ".dat", mdict={'image': image})
                 textFile = open(self.fileOutput + ".par", "w")
                 textFile.write("Frames: %d\n" % self.frames)
                 textFile.write("Date: %s\n" % self.timestamp)
