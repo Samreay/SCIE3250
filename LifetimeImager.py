@@ -10,7 +10,6 @@ class LifetimeImager:
 	def __init__(self, frames=100, preview=False, filename=""):
 		self.frames = 100
 		self.filename = ""
-		return self
 		
 	def setFrames(self, frames):
 		self.frames = frames
@@ -23,6 +22,7 @@ class LifetimeImager:
 		if (self.filename == ""):
 			self.filename = "output_%s_%d" % (self.timestamp, frames)
 		return self.filename
+		
 	def initCamera(self):
 		self.icic = IC_ImagingControl()
 		self.icic.init_library()
@@ -40,16 +40,16 @@ class LifetimeImager:
 		if not self.cam.callback_registered:
 			self.cam.register_frame_ready_callback()
 		self.cam.enable_continuous_mode(True)
-		print("Camera %s initialised. Resolution is %d x $d" % (self.camName, self.imgWidth, self.imgHeight))
+		print("Camera %s initialised. Resolution is %d x %d" % (self.camName, self.imgWidth, self.imgHeight))
 		
 	def captureFrame(self):
 		self.cam.reset_frame_ready();
 		self.cam.wait_til_frame_ready(3000);
 
 		img_ptr = self.cam.get_buffer()
-		img_data = cast(img_ptr, POINTER(c_ubyte * self.buffer_size))
+		img_data = cast(img_ptr, POINTER(c_ubyte * self.bufferSize))
 
-		return np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.img_height, self.img_width, self.img_depth))
+		return np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
 		
 	def preview(self):
 		self.initCamera()
@@ -57,13 +57,13 @@ class LifetimeImager:
 		i = 0
 		total = None
 		while(True):
-			i++
+			i += 1
 			if (i % self.frames == 0):
 				total = None
-			frame = captureFrame()
+			frame = self.captureFrame()
 			if (total == None):
-				total = np.ndarray([len(temp_img), len(temp_img[0]), 3], "uint32")
-			total = np.add(temp_img, total);
+				total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
+			total = np.add(frame, total);
 			img = np.divide(total,i).astype("uint8");
 			cv2.imshow('Image', img) 
 			if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -95,8 +95,8 @@ class LifetimeImager:
 			total = None
 			now = time.time()
 			while(i < self.frames):
-				i++
-				frame = captureFrame()
+				i += 1
+				frame = self.captureFrame()
 				if (total == None):
 					total = np.ndarray([len(temp_img), len(temp_img[0]), 3], "uint32")
 				total = np.add(temp_img, total);
