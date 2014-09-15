@@ -397,7 +397,9 @@ class LifeTimeFrame(wx.Frame):
 
             self.__info('  imagegrab -n %i ' % self.frames +\
                  '-t %i ' % self.threshold + '-o %i' % d + 'ps\n')
-
+            imager = LifetimeImager().setFrames(self.frames).setFilename('%ips' % int(d))
+            ret = imager.capture()
+            '''
             ret=subprocess.call([self. parent.exedir + '/imagegrab.exe',\
                                  '-n',\
                                  '%i' % self.frames,\
@@ -405,16 +407,16 @@ class LifeTimeFrame(wx.Frame):
                                  '%i' % self.threshold,\
                                  '-o',\
                                  '%i' % int(d) + 'ps'])
-
-            if ret != 0:
-                self.__error('imagegrab.exe returned an error!')
+            '''
+            if ret == False:
+                self.__error('LifetimeImager returned an error!')
                 return -1
             else:
                 # append the MCP information to the generated filename.txt
                 f=file('%i' % int(d) + 'ps','a')
                 f.write("mcp = %f\n" % self.mcp)
-                f.write("exptime = %e\n" % self.exptime*1e-9)
-                f.write("delay = %e\n" % d*1e-12)
+                f.write("exptime = %e\n" % (self.exptime*1e-9))
+                f.write("delay = %e\n" % (d*1e-12))
                 f.close()
                 
             d += step
