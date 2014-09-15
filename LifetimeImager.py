@@ -15,8 +15,9 @@ class LifetimeImager:
 		self.frames = frames
 		return self
 		
-	def setOutputFilename(self, filename):
+	def setFilename(self, filename):
 		self.filename = filename
+		return self
 	
 	def getFilename(self):
 		if (self.filename == ""):
@@ -73,14 +74,14 @@ class LifetimeImager:
 		self.icic.close_library()
 		cv2.destroyAllWindows()
 		
-	def saveOutput(self, total, img, now):
+	def saveOutput(self, total, img, i, now):
 		self.elapsed = time.time() - now
 		print("Capture finished in %0.2f seconds" % (self.elapsed))
 		cv2.imwrite(self.filename + ".png", img)
 		image = np.mean(total, axis=2)
 		scipy.io.savemat(self.fileOutput + ".dat", mdict={'image': image})
 		textFile = open(self.fileOutput + ".par", "w")
-		textFile.write("Frames: %d\n" % self.frames)
+		textFile.write("Frames: %d\n" % i)
 		textFile.write("Date: %s\n" % self.timestamp)
 		textFile.write("Time Taken : %0.2fs\n" % self.elapsed)
 		textFile.write("Width: %d\n" % self.img_width)
@@ -91,7 +92,9 @@ class LifetimeImager:
 	def capture(self):
 		try:
 			self.initCamera()
-			self.cam.start_live(show_display=False) # start imaging
+			print("Camera initialised")
+			self.cam.start_live(show_display=False)
+			print("Camera started")
 			i = 0
 			total = None
 			now = time.time()
@@ -99,18 +102,19 @@ class LifetimeImager:
 				i += 1
 				frame = self.captureFrame()
 				if (total == None):
-					total = np.ndarray([len(temp_img), len(temp_img[0]), 3], "uint32")
-				total = np.add(temp_img, total);
+					total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
+				total = np.add(frame, total);
 				img = np.divide(total,i).astype("uint8");
 				cv2.imshow('Image', img) 
 				if cv2.waitKey(1) & 0xFF == ord('q'):
-					break
-				if (self.frames == i):
-					saveOutput(total, img, now)
-				
+					break					
+			saveOutput(total, img, i, now)
 			self.cam.stop_live()
 			self.icic.close_library()
+			print("Camera stopped")
 			cv2.destroyAllWindows()
 			return True
-		except Exception:
+		except Exception as e:
+			print("An error occurred", e.message)
+			print("The most likely causes is a background pythonw.exe process using the camera. Kill it.")
 			return False

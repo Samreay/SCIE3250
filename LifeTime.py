@@ -327,6 +327,8 @@ class LifeTimeFrame(wx.Frame):
 
         self.__info('  imagegrab -n %i ' % self.frames + \
               '-t %i ' % self.threshold + '-o %s\n' % filename)
+        self.__debug('filename: %s' % filename)
+        self.__debug('frames: %d' % self.frames)
         ret = LifetimeImager().setFrames(self.frames).setFilename(filename).capture()
 
         '''ret=subprocess.call([self.parent.exedir + '/imagegrab.exe',\
