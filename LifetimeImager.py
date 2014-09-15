@@ -49,8 +49,8 @@ class LifetimeImager:
 		img_ptr = self.cam.get_buffer()
 		img_data = cast(img_ptr, POINTER(c_ubyte * self.bufferSize))
 
-		return np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
-		
+		arr = np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
+		return np.rot90(arr, 2)
 	def preview(self):
 		self.initCamera()
 		self.cam.start_live(show_display=False) # start imaging
@@ -58,7 +58,8 @@ class LifetimeImager:
 		total = None
 		while(True):
 			i += 1
-			if (i % self.frames == 0):
+			if (i % self.frames == 1):
+				i = i % self.frames
 				total = None
 			frame = self.captureFrame()
 			if (total == None):
