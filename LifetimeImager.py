@@ -9,7 +9,8 @@ class LifetimeImager:
 
 	def __init__(self, frames=100, preview=False, filename=""):
 		self.frames = 100
-		self.filename = ""
+		self.timestamp = time.strftime("_%Y%m%d_%H%M%S")
+		self.filename = "output_%s" % (self.timestamp)
 		
 	def setFrames(self, frames):
 		self.frames = frames
@@ -18,11 +19,6 @@ class LifetimeImager:
 	def setFilename(self, filename):
 		self.filename = filename
 		return self
-	
-	def getFilename(self):
-		if (self.filename == ""):
-			self.filename = "output_%s_%d" % (self.timestamp, frames)
-		return self.filename
 		
 	def initCamera(self):
 		self.icic = IC_ImagingControl()
@@ -36,7 +32,6 @@ class LifetimeImager:
 		self.imgWidth = self.cam.get_video_format_width()
 		self.imgDepth = 3 # 3 colours for RGB
 		self.bufferSize = self.imgHeight * self.imgWidth * self.imgDepth * sizeof(c_uint8)
-		self.timestamp = time.strftime("_%Y%m%d_%H%M%S")
 		self.cam.enable_trigger(True)
 		if not self.cam.callback_registered:
 			self.cam.register_frame_ready_callback()
@@ -79,40 +74,48 @@ class LifetimeImager:
 		print("Capture finished in %0.2f seconds" % (self.elapsed))
 		cv2.imwrite(self.filename + ".png", img)
 		image = np.mean(total, axis=2)
-		scipy.io.savemat(self.fileOutput + ".dat", mdict={'image': image})
-		textFile = open(self.fileOutput + ".par", "w")
-		textFile.write("Frames: %d\n" % i)
-		textFile.write("Date: %s\n" % self.timestamp)
-		textFile.write("Time Taken : %0.2fs\n" % self.elapsed)
-		textFile.write("Width: %d\n" % self.img_width)
-		textFile.write("Height: %d\n" % self.img_height)
-		textFile.close()
-		print("Output saved to %s" % (self.fileOutput))
+		scipy.io.savemat(self.filename + ".mat", mdict={'image': image})
+		textFile = None
+		try:
+			textFile = open(self.filename + ".par", "w")
+			textFile.write("Frames: %d\n" % i)
+			textFile.write("Date: %s\n" % self.timestamp)
+			textFile.write("Time Taken : %0.2fs\n" % self.elapsed)
+			textFile.write("Width: %d\n" % self.imgWidth)
+			textFile.write("Height: %d\n" % self.imgHeight)
+		finally:
+			try:
+				textFile.close()
+			except Exception:
+				print("textFile cannot be closed")
+		print("Output saved to %s" % (self.filename))
 		
 	def capture(self):
 		try:
 			self.initCamera()
-			print("Camera initialised")
-			self.cam.start_live(show_display=False)
-			print("Camera started")
-			i = 0
-			total = None
-			now = time.time()
-			while(i < self.frames):
-				i += 1
-				frame = self.captureFrame()
-				if (total == None):
-					total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
-				total = np.add(frame, total);
-				img = np.divide(total,i).astype("uint8");
-				cv2.imshow('Image', img) 
-				if cv2.waitKey(1) & 0xFF == ord('q'):
-					break					
-			saveOutput(total, img, i, now)
-			self.cam.stop_live()
-			self.icic.close_library()
-			print("Camera stopped")
-			cv2.destroyAllWindows()
+			try:
+				print("Camera initialised")
+				self.cam.start_live(show_display=False)
+				print("Camera started")
+				i = 0
+				total = None
+				now = time.time()
+				while(i < self.frames):
+					i += 1
+					frame = self.captureFrame()
+					if (total == None):
+						total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
+					total = np.add(frame, total);
+					img = np.divide(total,i).astype("uint8");
+					cv2.imshow('Image', img) 
+					if cv2.waitKey(1) & 0xFF == ord('q'):
+						break					
+				self.saveOutput(total, img, i, now)
+				print("Camera stopped")
+				cv2.destroyAllWindows()
+			finally:
+				self.cam.stop_live()
+				self.icic.close_library()
 			return True
 		except Exception as e:
 			print("An error occurred", e.message)
