@@ -14,12 +14,17 @@ class LifetimeImager:
 		self.trim = 5
 		self.doTrim = True
 		self.doBadPixles = True
+		self.writeImage = False
 		self.badPixels = [(142,15),(142,16),(142,17),
                                   (264,320),(264,321),(264,322),
                                   (264,323),(264,324),(264,325)]
 		
 	def setFrames(self, frames):
 		self.frames = frames
+		return self
+
+	def setWriteImage(self, writeImage):
+		self.writeImage = writeImage
 		return self
 
 	def selfSetBadPixels(self, badPixels):
@@ -101,18 +106,19 @@ class LifetimeImager:
 	def saveOutput(self, total, img, i, now):
 		self.elapsed = time.time() - now
 		print("Capture finished in %0.2f seconds" % (self.elapsed))
-		cv2.imwrite(self.filename + ".png", img)
+		if self.writeImage:
+			cv2.imwrite(self.filename + ".png", img)
 		image = np.mean(total, axis=2)
 		image = (65536 * (image - image.min())/(image.max()-image.min())).astype(np.uint16)
 		scipy.io.savemat(self.filename + ".mat", mdict={'image': image})
 		textFile = None
 		try:
-			textFile = open(self.filename + ".par", "w")
-			textFile.write("Frames: %d\n" % i)
-			textFile.write("Date: %s\n" % self.timestamp)
-			textFile.write("Time Taken : %0.2fs\n" % self.elapsed)
-			textFile.write("Width: %d\n" % self.imgWidth)
-			textFile.write("Height: %d\n" % self.imgHeight)
+			textFile = open(self.filename + ".txt", "w")
+			textFile.write("frames = %d\n" % i)
+			textFile.write("date = %s\n" % self.timestamp)
+			textFile.write("timeTaken = %0.2fs\n" % self.elapsed)
+			textFile.write("width = %d\n" % (self.imgWidth - 2*(self.trim if self.doTrim else 0)))
+			textFile.write("height = %d\n" % (self.imgHeight - 2*(self.trim if self.doTrim else 0)))
 		finally:
 			try:
 				textFile.close()

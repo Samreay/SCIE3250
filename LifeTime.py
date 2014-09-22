@@ -103,15 +103,15 @@ class LifeTimeFrame(wx.Frame):
         self.text_ctrl_Messages.BeginBold()
         self.text_ctrl_Messages.AppendText('single(10,bg): ')
         self.text_ctrl_Messages.EndBold()
-        self.text_ctrl_Messages.AppendText('Take a single image with 10 ns delay, save it in files \'bg.bin\' and \'bg.txt\'')
+        self.text_ctrl_Messages.AppendText('Take a single image with 10 ns delay, save it in files \'bg.mat\' and \'bg.txt\'')
         self.text_ctrl_Messages.EndSymbolBullet()
         self.text_ctrl_Messages.Newline()
 
         self.text_ctrl_Messages.BeginSymbolBullet('*',20,30)
         self.text_ctrl_Messages.BeginBold()
-        self.text_ctrl_Messages.AppendText('series(65,86,1): ')
+        self.text_ctrl_Messages.AppendText('series(65,86,1,bg): ')
         self.text_ctrl_Messages.EndBold()
-        self.text_ctrl_Messages.AppendText('Make a series of measurement with delay going from 65 ns to 86 ns in steps of 1 ns.')
+        self.text_ctrl_Messages.AppendText('Make a series of measurement with delay going from 65 ns to 86 ns in steps of 1 ns. Saves to bg<num>.mat')
         self.text_ctrl_Messages.EndSymbolBullet()
         self.text_ctrl_Messages.Newline()
 
@@ -219,18 +219,7 @@ class LifeTimeFrame(wx.Frame):
         del dlg
 
         # write parameters file
-        f=file('parameters.txt','w')
-
-        f.write('# Parameters for lifetime measurement\n')
-        f.write('# Start of experiment: %s\n' % time.asctime())
-        f.write('# Trigger is %s\n' % self.parent.camera.GetTriggerSource())
-        #f.write('# Videogain = %i dB\n' % self.parent.camera.GetVideoGain())
-
-        for linenumber in range(self.text_ctrl_MeasurementList.GetNumberOfLines()):
-            text=self.text_ctrl_MeasurementList.GetLineText(linenumber)
-            f.write(text+'\n')
-
-        f.close()
+        
 
         self.exptime=None
         self.threshold=None
@@ -278,6 +267,16 @@ class LifeTimeFrame(wx.Frame):
         dlg.ShowModal()
         self.button_Run.SetLabel('Run measurement')
         self.isRunning = False
+        f=file('%s.par' % self.filename,'w')
+        f.write('# Parameters for lifetime measurement\n')
+        f.write('# Start of experiment: %s\n' % time.asctime())
+        f.write('# Trigger is %s\n' % self.parent.camera.GetTriggerSource())
+        #f.write('# Videogain = %i dB\n' % self.parent.camera.GetVideoGain())
+        for linenumber in range(self.text_ctrl_MeasurementList.GetNumberOfLines()):
+            text=self.text_ctrl_MeasurementList.GetLineText(linenumber)
+            f.write(text+'\n')
+
+        f.close()
         return 0
 
     def commandSubdir(self,parameters):
@@ -310,6 +309,7 @@ class LifeTimeFrame(wx.Frame):
 
         delay=float(parameters[0])*1000 # in ps
         filename=parameters[1]
+        self.filename = parameters[1]
         
         self.__info('\nSingle image with %i frames, ' % self.frames + \
                'exposure time is %i ps, ' % (self.exptime*1000) + \
@@ -368,14 +368,15 @@ class LifeTimeFrame(wx.Frame):
         if self.threshold == None:
             self.__error('Need to set a pixel threshold!')
             return -1
+        
 
         start=float(parameters[0])*1000
         stop=float(parameters[1])*1000
         step=float(parameters[2])*1000
-
+        self.filename = parameters[3]
         self.__info('\nSeries from %i to %i ps, step is %i ps, exp. time is %i ps, \
-            %i frames, MCP is %iV, threshold is %i\n'
-            % (start,stop,step,self.exptime*1000,self.frames,self.mcp,self.threshold))
+            %i frames, MCP is %iV, threshold is %i, to file %s\n'
+            % (start,stop,step,self.exptime*1000,self.frames,self.mcp,self.threshold,self.filename))
 
         if stop < start:
             self.__error('Startime > Stoptime!')
@@ -397,7 +398,7 @@ class LifeTimeFrame(wx.Frame):
 
             self.__info('  imagegrab -n %i ' % self.frames +\
                  '-t %i ' % self.threshold + '-o %i' % d + 'ps\n')
-            imager = LifetimeImager().setFrames(self.frames).setFilename('%ips' % int(d))
+            imager = LifetimeImager().setFrames(self.frames).setFilename('%s%ips' % (self.filename,int(d)))
             ret = imager.capture()
             '''
             ret=subprocess.call([self. parent.exedir + '/imagegrab.exe',\
@@ -413,7 +414,7 @@ class LifeTimeFrame(wx.Frame):
                 return -1
             else:
                 # append the MCP information to the generated filename.txt
-                f=file('%i' % int(d) + 'ps','a')
+                f=file('%s%ips.txt' % (self.filename,int(d)),'a')
                 f.write("mcp = %f\n" % self.mcp)
                 f.write("exptime = %e\n" % (self.exptime*1e-9))
                 f.write("delay = %e\n" % (d*1e-12))
