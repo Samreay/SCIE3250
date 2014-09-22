@@ -74,6 +74,7 @@ class LifetimeImager:
 		print("Capture finished in %0.2f seconds" % (self.elapsed))
 		cv2.imwrite(self.filename + ".png", img)
 		image = np.mean(total, axis=2)
+		image = (65536 * (image - image.min())/(image.max()-image.min())).astype(np.uint16)
 		scipy.io.savemat(self.filename + ".mat", mdict={'image': image})
 		textFile = None
 		try:
