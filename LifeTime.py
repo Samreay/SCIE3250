@@ -20,6 +20,7 @@
 import wx, wx.richtext
 import os, time, subprocess, re, threading, sys, traceback
 import stanford
+import serial
 from LifetimeImager import LifetimeImager
 
 
@@ -96,6 +97,14 @@ class LifeTimeFrame(wx.Frame):
         self.text_ctrl_Messages.AppendText('threshold(10): ')
         self.text_ctrl_Messages.EndBold()
         self.text_ctrl_Messages.AppendText('Set every pixel with a value below or equal the threshold value of 10 to zero')
+        self.text_ctrl_Messages.EndSymbolBullet()
+        self.text_ctrl_Messages.Newline()
+		
+        self.text_ctrl_Messages.BeginSymbolBullet('*',20,30)
+        self.text_ctrl_Messages.BeginBold()
+        self.text_ctrl_Messages.AppendText('serial(COM1,hello): ')
+        self.text_ctrl_Messages.EndBold()
+        self.text_ctrl_Messages.AppendText('Sends "hello" to COM1 serial port')
         self.text_ctrl_Messages.EndSymbolBullet()
         self.text_ctrl_Messages.Newline()
 
@@ -233,7 +242,6 @@ class LifeTimeFrame(wx.Frame):
             if re.match('^(\w+)\(([\w\,\.\-_]+)\)$',text):
                 [command,parameters]=text.rstrip(')').split('(')
                 parameters=parameters.split(',')
-				# TODO: I THINK THIS IS WHERE I SHOULD ADD THE COMS COMMUNICATION
                 res = 0
                 if command == 'subdir':
                     res=self.commandSubdir(parameters)
@@ -245,6 +253,8 @@ class LifeTimeFrame(wx.Frame):
                     self.frames = int(parameters[0])
                 elif command == 'threshold':
                     self.threshold = int(parameters[0])
+                elif command == 'serial':
+                    res=self.sendSerial(parameters)
                 elif command == 'single':
                     res=self.commandSingle(parameters)
                 elif command == 'series':
@@ -279,6 +289,15 @@ class LifeTimeFrame(wx.Frame):
         f.close()
         return 0
 
+    def sendSerial(self, parameters):
+        comPort = int(parameters[0][3:]) - 1
+        message = parameters[1]
+        ser = serial.Serial(comPort)
+        ser.write(message)
+        self.__info("Sent '%s' to COM%d" % (message, comPort))
+        ser.close()
+        return 0
+		
     def commandSubdir(self,parameters):
         newdir = os.getcwd() + '/' + parameters[0]
 
