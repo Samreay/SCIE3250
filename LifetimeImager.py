@@ -11,13 +11,35 @@ class LifetimeImager:
 		self.frames = 100
 		self.timestamp = time.strftime("_%Y%m%d_%H%M%S")
 		self.filename = "output_%s" % (self.timestamp)
+		self.trim = 5
+		self.doTrim = True
+		self.doBadPixles = True
+		self.badPixels = [(142,15),(142,16),(142,17),
+                                  (264,320),(264,321),(264,322),
+                                  (264,323),(264,324),(264,325)]
 		
 	def setFrames(self, frames):
 		self.frames = frames
 		return self
+
+	def selfSetBadPixels(self, badPixels):
+		self.badPixels = badPixels
+		return self
 		
 	def setFilename(self, filename):
 		self.filename = filename
+		return self
+
+	def setTrim(self, trim):
+		self.trim = trim
+		return self
+		
+	def doTrim(self, doTrim):
+		self.doTrim = doTrim
+		return self
+        
+	def doBadPixels(self, doBadPixels):
+		self.doBadPixels
 		return self
 		
 	def initCamera(self):
@@ -46,7 +68,14 @@ class LifetimeImager:
 		img_data = cast(img_ptr, POINTER(c_ubyte * self.bufferSize))
 
 		arr = np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
-		return np.rot90(arr, 2)
+		arr = np.rot90(arr, 2)
+		if (self.doTrim):
+			arr = arr[self.trim:arr.shape[0]-self.trim,self.trim:arr.shape[1]-self.trim]
+		if (self.doBadPixels):
+			for (x,y) in self.badPixels:
+				arr[x,y] = arr[x-1,y]
+		return arr
+
 	def preview(self):
 		self.initCamera()
 		self.cam.start_live(show_display=False) # start imaging
@@ -61,7 +90,7 @@ class LifetimeImager:
 			if (total == None):
 				total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
 			total = np.add(frame, total);
-			img = np.divide(total,i).astype("uint8");
+			img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
 			cv2.imshow('Image', img) 
 			if cv2.waitKey(1) & 0xFF == ord('q'):
 				break
@@ -107,7 +136,8 @@ class LifetimeImager:
 					if (total == None):
 						total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
 					total = np.add(frame, total);
-					img = np.divide(total,i).astype("uint8");
+					#img = np.divide(total,i).astype("uint8");
+					img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
 					cv2.imshow('Image', img) 
 					if cv2.waitKey(1) & 0xFF == ord('q'):
 						break					
