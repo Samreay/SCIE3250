@@ -34,6 +34,7 @@ class LifeTimeFrame(wx.Frame):
         kwds["style"] = wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.panel_3 = wx.Panel(self, -1)
+        self.lifetimeImager = LifetimeImager()
         self.sizer_2_staticbox = wx.StaticBox(self.panel_3, -1, "Messages")
         self.sizer_24_staticbox = wx.StaticBox(self.panel_3, -1, "Measurement Script")
         self.text_ctrl_MeasurementList = wx.TextCtrl(self.panel_3, -1, "", style=wx.TE_MULTILINE)
@@ -348,7 +349,7 @@ class LifeTimeFrame(wx.Frame):
               '-t %i ' % self.threshold + '-o %s\n' % filename)
         self.__debug('filename: %s' % filename)
         self.__debug('frames: %d' % self.frames)
-        ret = LifetimeImager().setFrames(self.frames).setFilename(filename).capture()
+        ret = self.lifetimeImager.setFrames(self.frames).setFilename(filename).capture()
 
         '''ret=subprocess.call([self.parent.exedir + '/imagegrab.exe',\
                          '-n',\
@@ -417,7 +418,7 @@ class LifeTimeFrame(wx.Frame):
 
             self.__info('  imagegrab -n %i ' % self.frames +\
                  '-t %i ' % self.threshold + '-o %i' % d + 'ps\n')
-            imager = LifetimeImager().setFrames(self.frames).setFilename('%s%ips' % (self.filename,int(d)))
+            imager = self.lifetimeImager.setFrames(self.frames).setFilename('%s%ips' % (self.filename,int(d)))
             ret = imager.capture()
             '''
             ret=subprocess.call([self. parent.exedir + '/imagegrab.exe',\
@@ -487,10 +488,11 @@ class MainFrame(wx.Frame):
         self.label_1 = wx.StaticText(self.panel_1, -1, "# of frames:")
         self.textCtrlPreviewFrames = wx.TextCtrl(self.panel_1, -1, "25")
         self.buttonPreview = wx.Button(self.panel_1, -1, "Start Live preview")
+        self.checkbox_doScale = wx.CheckBox(self.panel_1, -1, "Autoscale preview image")
 
         self.__set_properties()
         self.__do_layout()
-
+        self.Bind(wx.EVT_CHECKBOX, self.setDoScale, self.checkbox_doScale)
         self.Bind(wx.EVT_CHECKBOX, self.enableTimeResolved, self.checkbox_TimeResolved)
         self.Bind(wx.EVT_BUTTON, self.setupCamera, self.button_SetupCamera)
         self.Bind(wx.EVT_BUTTON, self.onLivePreview, self.buttonPreview)
@@ -572,6 +574,8 @@ class MainFrame(wx.Frame):
         sizer_7.Add(self.textCtrlPreviewFrames, 1, wx.ALL|wx.EXPAND, 5)
         sizer_6.Add(sizer_7, 1, wx.EXPAND, 0)
         sizer_6.Add(self.buttonPreview, 1, wx.ALL|wx.EXPAND, 5)
+        sizer_6.Add(self.checkbox_doScale, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5)
+
         sizer_5.Add(sizer_6, 0, wx.ALL|wx.EXPAND, 5)
         self.panel_1.SetSizer(sizer_5)
         sizer_1.Add(self.panel_1, 1, wx.ALL|wx.EXPAND, 5)
@@ -622,6 +626,9 @@ class MainFrame(wx.Frame):
 
         t = self.spin_ctrl_VideoGain.GetValue()
         self.camera.SetVideoGain(t)
+
+    def setDoScale(self, event):
+        self.ltframe.lifetimeImager.setDoScale(self.checkbox_doScale.IsChecked())
         
     def enableTimeResolved(self, event): # wxGlade: MainFrame.<event_handler>
         if self.checkbox_TimeResolved.IsChecked():
@@ -653,7 +660,9 @@ class MainFrame(wx.Frame):
 
     def onLivePreview(self, event): # wxGlade: MainFrame.<event_handler>
         numframes=int(self.textCtrlPreviewFrames.GetValue())
-        LifetimeImager().setFrames(numframes).preview()
+        self.ltframe.lifetimeImager.setFrames(numframes)
+        if (not self.ltframe.lifetimeImager.isPreviewing()):
+            self.ltframe.lifetimeImager.preview()
 
     def onClose(self,event):
         self.Destroy()

@@ -15,12 +15,21 @@ class LifetimeImager:
 		self.doTrim = True
 		self.doBadPixles = True
 		self.writeImage = False
+		self.doScale = False
+		self.inPreview = False
 		self.badPixels = [(142,15),(142,16),(142,17),
                                   (264,320),(264,321),(264,322),
                                   (264,323),(264,324),(264,325)]
 		
 	def setFrames(self, frames):
 		self.frames = frames
+		return self
+
+	def isPreviewing(self):
+		return self.inPreview
+        
+	def setDoScale(self, doScale):
+		self.doScale = doScale
 		return self
 
 	def setWriteImage(self, writeImage):
@@ -84,6 +93,7 @@ class LifetimeImager:
 	def preview(self):
 		self.initCamera()
 		self.cam.start_live(show_display=False) # start imaging
+		self.inPreview = True
 		i = 0
 		total = None
 		while(True):
@@ -95,13 +105,19 @@ class LifetimeImager:
 			if (total == None):
 				total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
 			total = np.add(frame, total);
-			img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
+			if (self.doScale):
+				img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
+			elif (total.max() > 255):
+				img = (255 * total / total.max()).astype("uint8")
+			else:
+				img = total.astype("uint8")
 			cv2.imshow('Image', img) 
 			if cv2.waitKey(1) & 0xFF == ord('q'):
 				break
 		self.cam.stop_live()
 		self.icic.close_library()
 		cv2.destroyAllWindows()
+		self.inPreview = False
 		
 	def saveOutput(self, total, img, i, now):
 		self.elapsed = time.time() - now
@@ -110,7 +126,10 @@ class LifetimeImager:
 			cv2.imwrite(self.filename + ".png", img)
 		image = np.mean(total, axis=2)
 		#image = (65536 * (image - image.min())/(image.max()-image.min())).astype(np.uint16)
-		image = (65536 * (image / image.max())).astype(np.uint16)
+		scaleFactor = 1;
+		if (image.max() > 65536):
+			scaleFactor = image.max() / 65536
+		image = (image / scaleFactor).astype(np.uint16)
 		scipy.io.savemat(self.filename + ".mat", mdict={'image': image})
 		textFile = None
 		try:
@@ -120,6 +139,7 @@ class LifetimeImager:
 			textFile.write("timeTaken = %0.2fs\n" % self.elapsed)
 			textFile.write("width = %d\n" % (self.imgWidth - 2*(self.trim if self.doTrim else 0)))
 			textFile.write("height = %d\n" % (self.imgHeight - 2*(self.trim if self.doTrim else 0)))
+			textFile.write("scaleFactor = %0.3f" % (scaleFactor))
 		finally:
 			try:
 				textFile.close()
