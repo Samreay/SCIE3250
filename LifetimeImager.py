@@ -88,7 +88,7 @@ class LifetimeImager:
 		total = None
 		while(True):
 			i += 1
-			if (i % self.frames == 1):
+			if (i % self.frames == 1 or self.frames == 1):
 				i = i % self.frames
 				total = None
 			frame = self.captureFrame()
@@ -109,7 +109,8 @@ class LifetimeImager:
 		if self.writeImage:
 			cv2.imwrite(self.filename + ".png", img)
 		image = np.mean(total, axis=2)
-		image = (65536 * (image - image.min())/(image.max()-image.min())).astype(np.uint16)
+		#image = (65536 * (image - image.min())/(image.max()-image.min())).astype(np.uint16)
+		image = (65536 * (image / image.max())).astype(np.uint16)
 		scipy.io.savemat(self.filename + ".mat", mdict={'image': image})
 		textFile = None
 		try:
