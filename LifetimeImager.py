@@ -5,21 +5,34 @@ import time
 from ctypes import *
 from pyicic.IC_ImagingControl import IC_ImagingControl
 
-class LifetimeImager:
+class LifetimeImagerFactory:
+	def __init__(self):
+		self.imager = None
 
+	def getCamera(self):
+		if (self.imager == None):
+			icic = IC_ImagingControl()
+			icic.init_library()
+			if (len(icic.get_unique_device_names()) > 0):
+				print("Imaging Source camera found")
+				icic.close_library()
+				self.imager = new LifetimeImager()
+			else
+				raise Exception("Cannot instantiate a camera")
+		return self.imager
+
+
+class LifetimeImager:
 	def __init__(self, frames=100, preview=False, filename=""):
 		self.frames = 100
 		self.timestamp = time.strftime("_%Y%m%d_%H%M%S")
 		self.filename = "output_%s" % (self.timestamp)
 		self.trim = 5
-		self.doTrim = True
-		self.doBadPixles = True
+		self.doTrim = False
+		self.doBadPixles = False
 		self.writeImage = False
 		self.doScale = False
 		self.inPreview = False
-		self.badPixels = [(142,15),(142,16),(142,17),
-                                  (264,320),(264,321),(264,322),
-                                  (264,323),(264,324),(264,325)]
 		
 	def setFrames(self, frames):
 		self.frames = frames
@@ -57,67 +70,13 @@ class LifetimeImager:
 		return self
 		
 	def initCamera(self):
-		self.icic = IC_ImagingControl()
-		self.icic.init_library()
-		cam_names = self.icic.get_unique_device_names()
-		self.camName = cam_names[0]
-		self.cam = self.icic.get_device(self.camName)
-		self.cam.open()
-		self.cam.set_video_norm('PAL_B')
-		self.imgHeight = self.cam.get_video_format_height()
-		self.imgWidth = self.cam.get_video_format_width()
-		self.imgDepth = 3 # 3 colours for RGB
-		self.bufferSize = self.imgHeight * self.imgWidth * self.imgDepth * sizeof(c_uint8)
-		self.cam.enable_trigger(True)
-		if not self.cam.callback_registered:
-			self.cam.register_frame_ready_callback()
-		self.cam.enable_continuous_mode(True)
-		print("Camera %s initialised. Resolution is %d x %d" % (self.camName, self.imgWidth, self.imgHeight))
-		
+		raise Exception("Please override this method")
+
 	def captureFrame(self):
-		self.cam.reset_frame_ready();
-		self.cam.wait_til_frame_ready(3000);
-
-		img_ptr = self.cam.get_buffer()
-		img_data = cast(img_ptr, POINTER(c_ubyte * self.bufferSize))
-
-		arr = np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
-		arr = np.rot90(arr, 2)
-		if (self.doTrim):
-			arr = arr[self.trim:arr.shape[0]-self.trim,self.trim:arr.shape[1]-self.trim]
-		if (self.doBadPixels):
-			for (x,y) in self.badPixels:
-				arr[x,y] = arr[x-1,y]
-		return arr
-
-	def preview(self):
-		self.initCamera()
-		self.cam.start_live(show_display=False) # start imaging
-		self.inPreview = True
-		i = 0
-		total = None
-		while(True):
-			i += 1
-			if (i % self.frames == 1 or self.frames == 1):
-				i = i % self.frames
-				total = None
-			frame = self.captureFrame()
-			if (total == None):
-				total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
-			total = np.add(frame, total);
-			if (self.doScale):
-				img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
-			elif (total.max() > 255):
-				img = (255 * total / total.max()).astype("uint8")
-			else:
-				img = total.astype("uint8")
-			cv2.imshow('Image', img) 
-			if cv2.waitKey(1) & 0xFF == ord('q'):
-				break
-		self.cam.stop_live()
-		self.icic.close_library()
-		cv2.destroyAllWindows()
-		self.inPreview = False
+		raise Exception("Please override this method")
+		
+	def closeCamera(self):
+		raise Exception("Please override this method")
 		
 	def saveOutput(self, total, img, i, now):
 		self.elapsed = time.time() - now
@@ -172,10 +131,91 @@ class LifetimeImager:
 				print("Camera stopped")
 				cv2.destroyAllWindows()
 			finally:
-				self.cam.stop_live()
-				self.icic.close_library()
+				self.closeCamera()
 			return True
 		except Exception as e:
 			print("An error occurred", e.message)
 			print("The most likely causes is a background pythonw.exe process using the camera. Kill it.")
 			return False
+			
+	def preview(self):
+		self.initCamera()
+		self.inPreview = True
+		i = 0
+		total = None
+		while(True):
+			i += 1
+			if (i % self.frames == 1 or self.frames == 1):
+				i = i % self.frames
+				total = None
+			frame = self.captureFrame()
+			if (total == None):
+				total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
+			total = np.add(frame, total);
+			if (self.doScale):
+				img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
+			elif (total.max() > 255):
+				img = (255 * total / total.max()).astype("uint8")
+			else:
+				img = total.astype("uint8")
+			cv2.imshow('Image', img) 
+			if cv2.waitKey(1) & 0xFF == ord('q'):
+				break
+		self.closeCamera()
+		cv2.destroyAllWindows()
+		self.inPreview = False
+		
+class ImagingSourceImager(LifetimeImager):
+	def __init__(self, frames, preview, filename=""):
+		super(frames, preview, filename)
+		self.trim = 5
+		self.doTrim = True
+		self.doBadPixles = True
+		self.badPixels = [(142,15),(142,16),(142,17),
+                                  (264,320),(264,321),(264,322),
+                                  (264,323),(264,324),(264,325)]
+	
+	def initCamera(self):
+		self.icic = IC_ImagingControl()
+		self.icic.init_library()
+		cam_names = self.icic.get_unique_device_names()
+		self.camName = cam_names[0]
+		self.cam = self.icic.get_device(self.camName)
+		self.cam.open()
+		self.cam.set_video_norm('PAL_B')
+		self.imgHeight = self.cam.get_video_format_height()
+		self.imgWidth = self.cam.get_video_format_width()
+		self.imgDepth = 3 # 3 colours for RGB
+		self.bufferSize = self.imgHeight * self.imgWidth * self.imgDepth * sizeof(c_uint8)
+		self.cam.enable_trigger(True)
+		if not self.cam.callback_registered:
+			self.cam.register_frame_ready_callback()
+		self.cam.enable_continuous_mode(True)
+		self.cam.start_live(show_display=False) # start imaging
+		print("Camera %s initialised. Resolution is %d x %d" % (self.camName, self.imgWidth, self.imgHeight))
+		
+	def closeCamera(self):
+		self.cam.stop_live()
+		self.icic.close_library()
+	
+	def captureFrame(self):
+		self.cam.reset_frame_ready();
+		self.cam.wait_til_frame_ready(3000);
+
+		img_ptr = self.cam.get_buffer()
+		img_data = cast(img_ptr, POINTER(c_ubyte * self.bufferSize))
+
+		arr = np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
+		arr = np.rot90(arr, 2)
+		if (self.doTrim):
+			arr = arr[self.trim:arr.shape[0]-self.trim,self.trim:arr.shape[1]-self.trim]
+		if (self.doBadPixels):
+			for (x,y) in self.badPixels:
+				arr[x,y] = arr[x-1,y]
+		return arr
+
+	
+	
+	
+		
+	
