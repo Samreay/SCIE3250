@@ -92,3 +92,9 @@ $RECYCLE.BIN/
 *.msi
 *.msm
 *.msp
+*.inf
+*.sys
+OSDS142MRT.dll
+OSDS142MAPI.h
+OSDS142MRT.lib
+Notes.pdf
