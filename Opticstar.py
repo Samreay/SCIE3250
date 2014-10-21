@@ -172,14 +172,14 @@ class OpticstarControl(object):
             print("Library initialised without error")
 
     def closeLibrary(self):
+        if self.logging: print("Closing library")
         err = OpticstarDLL.exit_library()
         if err != 0:
             raise Exception("Could not finalise the OSDS142MRT library")
+        elif self.logging: print("Closed library")
         
     def __exit__(self, type, value, traceback):
-        err = OpticstarDLL.exit_library()
-        if err != 0:
-            raise Exception("Could not finalise the OSDS142MRT library")
+        self.closeLibrary()
 
     def showStarView(self):
         """
@@ -211,14 +211,24 @@ class OpticstarControl(object):
         if err != 0:
             raise Exception("Could not hide Star View")     
 
+    def isExposing(self):
+        isExposing = c_bool()
+        timeLeft = c_uint()
+        err = OpticstarDLL.is_exposing(byref(isExposing), byref(timeLeft))
+        if err != 0: Exception("Could not get if exposing")
+        if self.logging: print("Exposing result is: %s %s" % (str(isExposing), str(timeLeft)))
+        return isExposing.value
+    
     def getFrame(self, exposureTime):
         """
         Captures an image in binning mode 0 with the specified exposure time
         """
+        if self.logging: print("Capturing image with exposure time %d ms" % exposureTime)
         err = OpticstarDLL.capture(0, exposureTime)
         if (err != 0):
             raise Exception("Could not capture image")
         else:
+            if self.logging: print("Capture returned successfully. Getting raw image.")
             width = 1360
             height = 1024
             array = bytearray(width * height * 2)
@@ -226,6 +236,7 @@ class OpticstarControl(object):
             if (err2 != 0):
                 raise Exception("Could not get the raw image")
             else:
+                if self.logging: print("Raw image returned successfully.")
                 return array
         return None
             
