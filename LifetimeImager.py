@@ -16,14 +16,14 @@ class LifetimeImagerFactory:
 			if (len(icic.get_unique_device_names()) > 0):
 				print("Imaging Source camera found")
 				icic.close_library()
-				self.imager = new LifetimeImager()
-			else
-				raise Exception("Cannot instantiate a camera")
+				self.imager = ImagingSourceImager()
+			else:
+				raise Exception("Cannot instantiate a camera. Imaging Source not detected. Opticstar nonfunctional.")
 		return self.imager
 
 
-class LifetimeImager:
-	def __init__(self, frames=100, preview=False, filename=""):
+class LifetimeImager(object):
+	def __init__(self):
 		self.frames = 100
 		self.timestamp = time.strftime("_%Y%m%d_%H%M%S")
 		self.filename = "output_%s" % (self.timestamp)
@@ -98,7 +98,8 @@ class LifetimeImager:
 			textFile.write("timeTaken = %0.2fs\n" % self.elapsed)
 			textFile.write("width = %d\n" % (self.imgWidth - 2*(self.trim if self.doTrim else 0)))
 			textFile.write("height = %d\n" % (self.imgHeight - 2*(self.trim if self.doTrim else 0)))
-			textFile.write("scaleFactor = %0.3f" % (scaleFactor))
+			textFile.write("scaleFactor = %0.3f\n" % (scaleFactor))
+			textFile.write("trim = %d\n" % (self.trim if self.doTrim else 0))
 		finally:
 			try:
 				textFile.close()
@@ -107,11 +108,10 @@ class LifetimeImager:
 		print("Output saved to %s" % (self.filename))
 		
 	def capture(self):
+		print("Displaying (not saving) scaled image.")
 		try:
 			self.initCamera()
 			try:
-				print("Camera initialised")
-				self.cam.start_live(show_display=False)
 				print("Camera started")
 				i = 0
 				total = None
@@ -125,7 +125,7 @@ class LifetimeImager:
 					#img = np.divide(total,i).astype("uint8");
 					img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
 					cv2.imshow('Image', img) 
-					if cv2.waitKey(1) & 0xFF == ord('q'):
+					if (cv2.waitKey(1) == 27):
 						break					
 				self.saveOutput(total, img, i, now)
 				print("Camera stopped")
@@ -139,6 +139,7 @@ class LifetimeImager:
 			return False
 			
 	def preview(self):
+		print("Press escape on preview window to exit")
 		self.initCamera()
 		self.inPreview = True
 		i = 0
@@ -159,15 +160,15 @@ class LifetimeImager:
 			else:
 				img = total.astype("uint8")
 			cv2.imshow('Image', img) 
-			if cv2.waitKey(1) & 0xFF == ord('q'):
+			if (cv2.waitKey(1) == 27):
 				break
 		self.closeCamera()
 		cv2.destroyAllWindows()
 		self.inPreview = False
 		
 class ImagingSourceImager(LifetimeImager):
-	def __init__(self, frames, preview, filename=""):
-		super(frames, preview, filename)
+	def __init__(self):
+		super(ImagingSourceImager, self).__init__()
 		self.trim = 5
 		self.doTrim = True
 		self.doBadPixles = True

@@ -21,7 +21,7 @@ import wx, wx.richtext
 import os, time, subprocess, re, threading, sys, traceback
 import stanford
 import serial
-from LifetimeImager import LifetimeImager
+from LifetimeImager import *
 
 
 # begin wxGlade: extracode
@@ -34,7 +34,7 @@ class LifeTimeFrame(wx.Frame):
         kwds["style"] = wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.panel_3 = wx.Panel(self, -1)
-        self.lifetimeImager = LifetimeImager()
+        self.lifetimeImagerFactory = LifetimeImagerFactory()
         self.sizer_2_staticbox = wx.StaticBox(self.panel_3, -1, "Messages")
         self.sizer_24_staticbox = wx.StaticBox(self.panel_3, -1, "Measurement Script")
         self.text_ctrl_MeasurementList = wx.TextCtrl(self.panel_3, -1, "", style=wx.TE_MULTILINE)
@@ -93,13 +93,13 @@ class LifeTimeFrame(wx.Frame):
         self.text_ctrl_Messages.EndSymbolBullet()
         self.text_ctrl_Messages.Newline()
 
-        self.text_ctrl_Messages.BeginSymbolBullet('*',20,30)
-        self.text_ctrl_Messages.BeginBold()
-        self.text_ctrl_Messages.AppendText('threshold(10): ')
-        self.text_ctrl_Messages.EndBold()
-        self.text_ctrl_Messages.AppendText('Set every pixel with a value below or equal the threshold value of 10 to zero')
-        self.text_ctrl_Messages.EndSymbolBullet()
-        self.text_ctrl_Messages.Newline()
+        #self.text_ctrl_Messages.BeginSymbolBullet('*',20,30)
+        #self.text_ctrl_Messages.BeginBold()
+        #self.text_ctrl_Messages.AppendText('threshold(10): ')
+        #self.text_ctrl_Messages.EndBold()
+        #self.text_ctrl_Messages.AppendText('Set every pixel with a value below or equal the threshold value of 10 to zero')
+        #self.text_ctrl_Messages.EndSymbolBullet()
+        #self.text_ctrl_Messages.Newline()
 		
         self.text_ctrl_Messages.BeginSymbolBullet('*',20,30)
         self.text_ctrl_Messages.BeginBold()
@@ -132,7 +132,7 @@ class LifeTimeFrame(wx.Frame):
 
         # write default values in measurement list
         self.text_ctrl_MeasurementList.AppendText('# default values\n'+
-            'exptime(1.0)\nframes(100)\nmcp(750)\nthreshold(0)\n'+
+            'exptime(1.0)\nframes(100)\nmcp(750)\n'+ # threshold(0)\n
             '# measurement\nsingle(0,bg)')
         
         self.parent = parent
@@ -323,9 +323,9 @@ class LifeTimeFrame(wx.Frame):
             self.__error('Need to set a MCP voltage!')
             return -1
 
-        if self.threshold == None:
-            self.__error('Need to set a pixel threshold!')
-            return -1
+        #if self.threshold == None:
+        #    self.__error('Need to set a pixel threshold!')
+        #   return -1
 
         delay=float(parameters[0])*1000 # in ps
         filename=parameters[1]
@@ -334,7 +334,7 @@ class LifeTimeFrame(wx.Frame):
         self.__info('\nSingle image with %i frames, ' % self.frames + \
                'exposure time is %i ps, ' % (self.exptime*1000) + \
                'delay time is %i ps, ' % delay + \
-               'threshold is %i, ' % self.threshold + \
+               #'threshold is %i, ' % self.threshold + \
                'mcp is %i V, ' % self.mcp + \
                'save as %s\n' % filename)
 
@@ -345,11 +345,11 @@ class LifeTimeFrame(wx.Frame):
         self.parent.camera.SetGain(self.mcp)
         self.__debug('self.parent.camera.SetGain(%i)' % (self.mcp))
 
-        self.__info('  imagegrab -n %i ' % self.frames + \
-              '-t %i ' % self.threshold + '-o %s\n' % filename)
+        #self.__info('  imagegrab -n %i ' % self.frames + \
+        #      '-t %i ' % self.threshold + '-o %s\n' % filename)
         self.__debug('filename: %s' % filename)
         self.__debug('frames: %d' % self.frames)
-        ret = self.lifetimeImager.setFrames(self.frames).setFilename(filename).capture()
+        ret = self.lifetimeImagerFactory.getCamera().setFrames(self.frames).setFilename(filename).capture()
 
         '''ret=subprocess.call([self.parent.exedir + '/imagegrab.exe',\
                          '-n',\
@@ -359,7 +359,7 @@ class LifeTimeFrame(wx.Frame):
                          '-o',\
                          '%s' % filename])'''
         if ret != True:
-            self.__error('imagegrab.exe returned an error!')
+            self.__error('LifetimeImager returned an error!')
             return -1
         else:
             # append the MCP information to the generated filename.txt
@@ -416,9 +416,9 @@ class LifeTimeFrame(wx.Frame):
             self.parent.camera.SetExposureDelay(d*1e-12)
             self.__debug('self.parent.camera.SetExposureDelay(%e)' % (d*1e-12))
 
-            self.__info('  imagegrab -n %i ' % self.frames +\
-                 '-t %i ' % self.threshold + '-o %i' % d + 'ps\n')
-            imager = self.lifetimeImager.setFrames(self.frames).setFilename('%s%ips' % (self.filename,int(d)))
+            #self.__info('  imagegrab -n %i ' % self.frames +\
+            #     '-t %i ' % self.threshold + '-o %i' % d + 'ps\n')
+            imager = self.lifetimeImagerFactory.getCamera().setFrames(self.frames).setFilename('%s%ips' % (self.filename,int(d)))
             ret = imager.capture()
             '''
             ret=subprocess.call([self. parent.exedir + '/imagegrab.exe',\
@@ -628,7 +628,7 @@ class MainFrame(wx.Frame):
         self.camera.SetVideoGain(t)
 
     def setDoScale(self, event):
-        self.ltframe.lifetimeImager.setDoScale(self.checkbox_doScale.IsChecked())
+        self.ltframe.lifetimeImagerFactory.getCamera().setDoScale(self.checkbox_doScale.IsChecked())
         
     def enableTimeResolved(self, event): # wxGlade: MainFrame.<event_handler>
         if self.checkbox_TimeResolved.IsChecked():
@@ -660,9 +660,9 @@ class MainFrame(wx.Frame):
 
     def onLivePreview(self, event): # wxGlade: MainFrame.<event_handler>
         numframes=int(self.textCtrlPreviewFrames.GetValue())
-        self.ltframe.lifetimeImager.setFrames(numframes)
-        if (not self.ltframe.lifetimeImager.isPreviewing()):
-            self.ltframe.lifetimeImager.preview()
+        self.ltframe.lifetimeImagerFactory.getCamera().setFrames(numframes)
+        if (not self.ltframe.lifetimeImagerFactory.getCamera().isPreviewing()):
+            self.ltframe.lifetimeImagerFactory.getCamera().preview()
 
     def onClose(self,event):
         self.Destroy()
