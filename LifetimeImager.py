@@ -33,7 +33,13 @@ class LifetimeImager(object):
 		self.writeImage = False
 		self.doScale = False
 		self.inPreview = False
-		
+		self.doBlur = False
+		self.blurSize = 3
+
+	def setDoBlur(self, doBlur):
+		self.doBlur = doBlur
+		return self
+                
 	def setFrames(self, frames):
 		self.frames = frames
 		return self
@@ -83,12 +89,11 @@ class LifetimeImager(object):
 		print("Capture finished in %0.2f seconds" % (self.elapsed))
 		if self.writeImage:
 			cv2.imwrite(self.filename + ".png", img)
-		image = np.mean(total, axis=2)
 		#image = (65536 * (image - image.min())/(image.max()-image.min())).astype(np.uint16)
 		scaleFactor = 1;
-		if (image.max() > 65536):
-			scaleFactor = image.max() / 65536
-		image = (image / scaleFactor).astype(np.uint16)
+		if (total.max() > 65536):
+			scaleFactor = total.max() / 65536
+		image = (total / scaleFactor).astype(np.uint16)
 		scipy.io.savemat(self.filename + ".mat", mdict={'image': image})
 		textFile = None
 		try:
@@ -100,6 +105,7 @@ class LifetimeImager(object):
 			textFile.write("height = %d\n" % (self.imgHeight - 2*(self.trim if self.doTrim else 0)))
 			textFile.write("scaleFactor = %0.3f\n" % (scaleFactor))
 			textFile.write("trim = %d\n" % (self.trim if self.doTrim else 0))
+			textFile.write("blur = %d\n" % (self.blurSize if self.doBlur else 0))
 		finally:
 			try:
 				textFile.close()
@@ -120,7 +126,7 @@ class LifetimeImager(object):
 					i += 1
 					frame = self.captureFrame()
 					if (total == None):
-						total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
+						total = np.ndarray([len(frame), len(frame[0])], "uint32")
 					total = np.add(frame, total);
 					#img = np.divide(total,i).astype("uint8");
 					img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
@@ -151,7 +157,7 @@ class LifetimeImager(object):
 				total = None
 			frame = self.captureFrame()
 			if (total == None):
-				total = np.ndarray([len(frame), len(frame[0]), 3], "uint32")
+				total = np.ndarray([len(frame), len(frame[0])], "uint32")
 			total = np.add(frame, total);
 			if (self.doScale):
 				img = (255 * (total - total.min()) / (total.max() - total.min())).astype("uint8");
@@ -207,12 +213,17 @@ class ImagingSourceImager(LifetimeImager):
 		img_data = cast(img_ptr, POINTER(c_ubyte * self.bufferSize))
 
 		arr = np.ndarray(buffer = img_data.contents, dtype = np.uint8, shape = (self.imgHeight, self.imgWidth, self.imgDepth))
+		arr = arr[:,:,0]
 		arr = np.rot90(arr, 2)
+		arr = arr.astype(np.uint8)
 		if (self.doTrim):
 			arr = arr[self.trim:arr.shape[0]-self.trim,self.trim:arr.shape[1]-self.trim]
 		if (self.doBadPixels):
 			for (x,y) in self.badPixels:
 				arr[x,y] = arr[x-1,y]
+		if (self.doBlur):
+			arr = cv2.blur(arr,(self.blurSize,self.blurSize))
+			
 		return arr
 
 	

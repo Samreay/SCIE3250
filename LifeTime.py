@@ -488,11 +488,13 @@ class MainFrame(wx.Frame):
         self.label_1 = wx.StaticText(self.panel_1, -1, "# of frames:")
         self.textCtrlPreviewFrames = wx.TextCtrl(self.panel_1, -1, "25")
         self.buttonPreview = wx.Button(self.panel_1, -1, "Start Live preview")
-        self.checkbox_doScale = wx.CheckBox(self.panel_1, -1, "Autoscale preview image")
+        self.checkbox_doScale = wx.CheckBox(self.panel_1, -1, "Autoscale preview image (prev. only)")
+        self.checkbox_doBlur = wx.CheckBox(self.panel_1, -1, "Apply 3px box blur (prev. AND capture)")
 
         self.__set_properties()
         self.__do_layout()
         self.Bind(wx.EVT_CHECKBOX, self.setDoScale, self.checkbox_doScale)
+        self.Bind(wx.EVT_CHECKBOX, self.setDoBlur, self.checkbox_doBlur)
         self.Bind(wx.EVT_CHECKBOX, self.enableTimeResolved, self.checkbox_TimeResolved)
         self.Bind(wx.EVT_BUTTON, self.setupCamera, self.button_SetupCamera)
         self.Bind(wx.EVT_BUTTON, self.onLivePreview, self.buttonPreview)
@@ -575,6 +577,7 @@ class MainFrame(wx.Frame):
         sizer_6.Add(sizer_7, 1, wx.EXPAND, 0)
         sizer_6.Add(self.buttonPreview, 1, wx.ALL|wx.EXPAND, 5)
         sizer_6.Add(self.checkbox_doScale, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5)
+        sizer_6.Add(self.checkbox_doBlur, 0, wx.ALL|wx.ALIGN_CENTER_VERTICAL, 5)
 
         sizer_5.Add(sizer_6, 0, wx.ALL|wx.EXPAND, 5)
         self.panel_1.SetSizer(sizer_5)
@@ -626,6 +629,8 @@ class MainFrame(wx.Frame):
 
         t = self.spin_ctrl_VideoGain.GetValue()
         self.camera.SetVideoGain(t)
+    def setDoBlur(self, event):
+        self.ltframe.lifetimeImagerFactory.getCamera().setDoBlur(self.checkbox_doBlur.IsChecked())
 
     def setDoScale(self, event):
         self.ltframe.lifetimeImagerFactory.getCamera().setDoScale(self.checkbox_doScale.IsChecked())
